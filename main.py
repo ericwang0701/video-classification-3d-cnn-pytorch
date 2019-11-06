@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import subprocess
+import h5py
 import numpy as np
 import torch
 from torch import nn
@@ -17,6 +18,7 @@ if __name__=="__main__":
     opt.arch = '{}-{}'.format(opt.model_name, opt.model_depth)
     opt.sample_size = 112
     opt.sample_duration = 16
+    opt.stride = 5
     opt.n_classes = 400
 
     model = generate_model(opt)
@@ -45,7 +47,7 @@ if __name__=="__main__":
     if os.path.exists('tmp'):
         subprocess.call('rm -rf tmp', shell=True)
 
-    outputs = []
+    outputs = h5py.File(opt.output, 'w')
     for input_file in input_files:
         video_path = os.path.join(opt.video_root, input_file)
         if os.path.exists(video_path):
@@ -55,14 +57,16 @@ if __name__=="__main__":
                             shell=True)
 
             result = classify_video('tmp', input_file, class_names, model, opt)
-            outputs.append(result)
+            if 'video' in result:
+                vid = result['video'].rstrip('.avi')
+                clips = np.asarray([ r['features'] for r in result['clips'] ]).squeeze()
+                outputs[vid] = clips
 
             subprocess.call('rm -rf tmp', shell=True)
         else:
             print('{} does not exist'.format(input_file))
+    outputs.close()
 
     if os.path.exists('tmp'):
         subprocess.call('rm -rf tmp', shell=True)
 
-    with open(opt.output, 'w') as f:
-        json.dump(outputs, f)

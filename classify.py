@@ -15,7 +15,8 @@ def classify_video(video_dir, video_name, class_names, model, opt):
     temporal_transform = LoopPadding(opt.sample_duration)
     data = Video(video_dir, spatial_transform=spatial_transform,
                  temporal_transform=temporal_transform,
-                 sample_duration=opt.sample_duration)
+                 sample_duration=opt.sample_duration,
+                 stride=opt.stride)
     data_loader = torch.utils.data.DataLoader(data, batch_size=opt.batch_size,
                                               shuffle=False, num_workers=opt.n_threads, pin_memory=True)
 
@@ -28,8 +29,14 @@ def classify_video(video_dir, video_name, class_names, model, opt):
         video_outputs.append(outputs.cpu().data)
         video_segments.append(segments)
 
+    if len(video_outputs) == 0:
+        with open("error.list", 'a') as fout:
+            fout.write("{}\n".format(video_name))
+        return {}
+
     video_outputs = torch.cat(video_outputs)
     video_segments = torch.cat(video_segments)
+
     results = {
         'video': video_name,
         'clips': []
